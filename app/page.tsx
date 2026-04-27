@@ -2,10 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ChevronLeft, ChevronRight, LogIn, LogOut, BookHeart, Calendar as CalendarIcon, TrendingUp, Settings, Cloud, HardDrive, AlertCircle } from 'lucide-react';
-import { User, onAuthStateChanged } from 'firebase/auth';
-import { auth, db, googleProvider, signInWithPopup, signOut, isFirebaseConfigured } from '@/lib/firebase';
-import { collection, doc, setDoc, getDocs, serverTimestamp, query, where } from 'firebase/firestore';
+import { ChevronLeft, ChevronRight, LogIn, BookHeart, Calendar as CalendarIcon, TrendingUp, Settings } from 'lucide-react';
 
 // Types
 type Mood = 'incredible' | 'good' | 'normal' | 'bad' | 'horrible';
@@ -57,68 +54,18 @@ export default function AnimoApp() {
   
   const [isSaving, setIsSaving] = useState(false);
 
-  // Auth & Cloud State
-  const [user, setUser] = useState<User | null>(null);
-  const [cloudStatus, setCloudStatus] = useState<'local' | 'syncing' | 'cloud' | 'error'>('local');
-
-  const syncWithCloud = async (uid: string, currentLocal: Record<string, DailyEntry>) => {
-    if (!db) return currentLocal;
-    const moodsRef = collection(db, 'usuarios', uid, 'moods');
-    const snap = await getDocs(moodsRef);
-    const cloudEntries: Record<string, DailyEntry> = {};
-    
-    snap.forEach(document => {
-      cloudEntries[document.id] = document.data() as DailyEntry;
-    });
-
-    // Migrate new local entries to cloud
-    for (const [date, entry] of Object.entries(currentLocal)) {
-      if (!cloudEntries[date]) {
-         await setDoc(doc(db, 'usuarios', uid, 'moods', date), {
-            ...entry,
-            timestamp: serverTimestamp()
-         });
-         cloudEntries[date] = entry;
-      }
-    }
-    return cloudEntries;
-  };
-
-  // Load from local storage and initialize Firebase Auth
+  // Load from local storage
   useEffect(() => {
     const saved = localStorage.getItem('animo_entries');
-    let initialEntries: Record<string, DailyEntry> = {};
     if (saved) {
       try {
-        initialEntries = JSON.parse(saved);
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setEntries(initialEntries);
+        setEntries(JSON.parse(saved));
       } catch (e) {
         console.error("Error loading entries", e);
       }
     }
-
-    if (isFirebaseConfigured && auth) {
-      const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-        setUser(currentUser);
-        if (currentUser) {
-          setCloudStatus('syncing');
-          try {
-            const merged = await syncWithCloud(currentUser.uid, initialEntries);
-            setEntries(merged);
-            localStorage.setItem('animo_entries', JSON.stringify(merged));
-            setCloudStatus('cloud');
-          } catch (err) {
-            console.error("Cloud sync error", err);
-            setCloudStatus('error');
-          }
-        } else {
-          setCloudStatus('local');
-        }
-      });
-      return () => unsubscribe();
-    }
-  }, []); // Only run once on mount
+  }, []);
 
   // Update form when selected date changes
   useEffect(() => {
@@ -145,7 +92,7 @@ export default function AnimoApp() {
   }, [selectedDate, entries]);
 
   // Save entry
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     
@@ -161,38 +108,7 @@ export default function AnimoApp() {
     setEntries(updatedEntries);
     localStorage.setItem('animo_entries', JSON.stringify(updatedEntries));
     
-    if (user && db && cloudStatus !== 'error') {
-      try {
-         await setDoc(doc(db, 'usuarios', user.uid, 'moods', selectedDate), {
-            ...newEntry,
-            timestamp: serverTimestamp()
-         });
-         setCloudStatus('cloud');
-      } catch (err) {
-         console.error("Error saving to cloud", err);
-         setCloudStatus('error');
-      }
-    }
-
     setTimeout(() => setIsSaving(false), 600);
-  };
-
-  const handleLogin = async () => {
-    if (!auth || !googleProvider) {
-       alert("Firebase no está configurado. Revisa las variables de entorno (.env).");
-       return;
-    }
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (e) {
-      console.error("Login failed", e);
-    }
-  };
-
-  const handleLogout = async () => {
-    if (auth) {
-      await signOut(auth);
-    }
   };
 
   // Calendar generation
@@ -285,45 +201,11 @@ export default function AnimoApp() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
         {/* Top Bar / Login Banner */}
-        <header className="h-20 flex items-center justify-between px-8 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-md sticky top-0 z-10 shrink-0">
-          <div className="flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-full border border-white/5 bg-white/5">
-            {cloudStatus === 'local' && (
-              <><HardDrive size={14} className="text-gray-400" /> <span className="text-gray-400">Modo Local</span></>
-            )}
-            {cloudStatus === 'syncing' && (
-              <><Cloud size={14} className="text-blue-400 animate-pulse" /> <span className="text-blue-400">Sincronizando...</span></>
-            )}
-            {cloudStatus === 'cloud' && (
-              <><Cloud size={14} className="text-green-400" /> <span className="text-green-400">Datos en la nube</span></>
-            )}
-            {cloudStatus === 'error' && (
-              <><AlertCircle size={14} className="text-red-400" /> <span className="text-red-400">Error de conexión</span></>
-            )}
-          </div>
-
-          {!user ? (
-            <button 
-              onClick={handleLogin}
-              className="flex items-center gap-3 px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-sm text-gray-300 transition-all group"
-            >
-              <LogIn size={16} className="text-purple-400 group-hover:scale-110 transition-transform" />
-              <span>Inicia sesión con Google para guardar tu historial</span>
-            </button>
-          ) : (
-             <div className="flex items-center gap-4">
-                <div className="text-right hidden sm:block">
-                  <p className="text-xs font-bold text-gray-200">{user.displayName}</p>
-                  <p className="text-[10px] text-gray-500">{user.email}</p>
-                </div>
-                {user.photoURL && <img src={user.photoURL} alt="Avatar" className="w-9 h-9 rounded-full" />}
-                <button 
-                  onClick={handleLogout}
-                  className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-gray-400 hover:text-red-400 transition-colors"
-                >
-                  <LogOut size={16} />
-                </button>
-             </div>
-          )}
+        <header className="h-20 flex items-center justify-end px-8 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-md sticky top-0 z-10 shrink-0">
+          <button className="flex items-center gap-3 px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-sm text-gray-300 transition-all group">
+            <LogIn size={16} className="text-purple-400 group-hover:scale-110 transition-transform" />
+            <span>Inicia sesión con Google para guardar tu historial</span>
+          </button>
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 md:p-10 lg:p-12 flex flex-col xl:flex-row gap-12">
