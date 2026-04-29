@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, LogIn, BookHeart, Calendar as CalendarIcon, 
 
 // Types
 type Mood = 'incredible' | 'good' | 'normal' | 'bad' | 'horrible';
-type Energy = 'Baja' | 'Media' | 'Alta';
+type Energy = 'Bajo' | 'Media' | 'Alta';
 
 interface DailyEntry {
   date: string; // YYYY-MM-DD
@@ -45,13 +45,13 @@ export default function AnimoApp() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
   const [entries, setEntries] = useState<Record<string, DailyEntry>>({});
-  
+
   // Form State
   const [currentMood, setCurrentMood] = useState<Mood | null>(null);
   const [currentEnergy, setCurrentEnergy] = useState<Energy | null>(null);
   const [currentWord, setCurrentWord] = useState('');
   const [currentNote, setCurrentNote] = useState('');
-  
+
   const [isSaving, setIsSaving] = useState(false);
 
   // Load from local storage
@@ -95,7 +95,7 @@ export default function AnimoApp() {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    
+
     const newEntry: DailyEntry = {
       date: selectedDate,
       mood: currentMood,
@@ -103,11 +103,11 @@ export default function AnimoApp() {
       word: currentWord,
       note: currentNote,
     };
-    
+
     const updatedEntries = { ...entries, [selectedDate]: newEntry };
     setEntries(updatedEntries);
     localStorage.setItem('animo_entries', JSON.stringify(updatedEntries));
-    
+
     setTimeout(() => setIsSaving(false), 600);
   };
 
@@ -116,7 +116,7 @@ export default function AnimoApp() {
   const month = currentMonth.getMonth();
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
-  
+
   const days = [];
   for (let i = 0; i < firstDay; i++) {
     days.push(null);
@@ -133,13 +133,13 @@ export default function AnimoApp() {
   // Stats calculation
   const currentMonthEntries = Object.values(entries).filter(e => e.date.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`));
   const entriesCount = currentMonthEntries.filter(e => e.mood !== null).length;
-  
+
   // Calculate predominant mood
   const moodCounts = currentMonthEntries.reduce((acc, curr) => {
     if (curr.mood) acc[curr.mood] = (acc[curr.mood] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
-  
+
   let predominantMoodId = null;
   let maxCount = 0;
   for (const [m, count] of Object.entries(moodCounts)) {
@@ -161,13 +161,13 @@ export default function AnimoApp() {
     } else {
       // If today is empty, check yesterday before breaking
       if (streak === 0 && formatDate(checkDate) === formatDate(new Date())) {
-         checkDate.setDate(checkDate.getDate() - 1);
-         const yStr = formatDate(checkDate);
-         if (entries[yStr] && entries[yStr].mood) {
-             streak++;
-             checkDate.setDate(checkDate.getDate() - 1);
-             continue;
-         }
+        checkDate.setDate(checkDate.getDate() - 1);
+        const yStr = formatDate(checkDate);
+        if (entries[yStr] && entries[yStr].mood) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+          continue;
+        }
       }
       break;
     }
@@ -181,7 +181,7 @@ export default function AnimoApp() {
           <h1 className="font-serif text-4xl text-purple-400 italic mb-2">Ánimo</h1>
           <p className="text-gray-500 text-sm italic font-light">Tu santuario de medianoche</p>
         </div>
-        
+
         <nav className="space-y-2 flex-1">
           <a href="#" className="flex items-center gap-4 text-purple-400 font-medium bg-purple-500/10 px-4 py-3 rounded-xl border-l-2 border-purple-400 transition-all">
             <BookHeart size={20} /> Mi Diario
@@ -209,7 +209,7 @@ export default function AnimoApp() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 md:p-10 lg:p-12 flex flex-col xl:flex-row gap-12">
-          
+
           {/* Left Column: Calendar & Stats */}
           <div className="flex-1 max-w-3xl space-y-10">
             {/* Calendar Header */}
@@ -239,16 +239,16 @@ export default function AnimoApp() {
                   {d}
                 </div>
               ))}
-              
+
               {days.map((date, i) => {
                 if (!date) return <div key={`empty-${i}`} className="aspect-square" />;
-                
+
                 const dateStr = formatDate(date);
                 const isSelected = dateStr === selectedDate;
                 const isToday = dateStr === formatDate(new Date());
                 const entry = entries[dateStr];
                 const moodConfig = entry?.mood ? MOODS.find(m => m.id === entry.mood) : null;
-                
+
                 return (
                   <button
                     key={dateStr}
@@ -289,7 +289,7 @@ export default function AnimoApp() {
                 </div>
               </div>
               <div className="bg-[#141414] border border-white/5 rounded-2xl p-6 flex flex-col justify-between col-span-2 md:col-span-1">
-                <span className="text-xs text-gray-500 uppercase tracking-widest font-bold">Registros {monthNames[month].substring(0,3)}</span>
+                <span className="text-xs text-gray-500 uppercase tracking-widest font-bold">Registros {monthNames[month].substring(0, 3)}</span>
                 <p className="text-4xl font-serif mt-4 text-gray-200">{entriesCount}<span className="text-xl text-gray-600 font-sans">/{daysInMonth}</span></p>
               </div>
             </div>
@@ -357,8 +357,8 @@ export default function AnimoApp() {
                         onClick={() => setCurrentEnergy(e)}
                         className={`
                           py-2.5 text-xs rounded-xl font-bold transition-all
-                          ${currentEnergy === e 
-                            ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50' 
+                          ${currentEnergy === e
+                            ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
                             : 'bg-white/5 text-gray-400 border border-white/5 hover:bg-white/10'}
                         `}
                       >
